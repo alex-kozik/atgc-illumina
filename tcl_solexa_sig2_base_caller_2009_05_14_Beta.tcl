@@ -21,6 +21,7 @@ proc Sort_Table {argv} {
     set f_out_qual  [open [lindex $argv 1].qual "w"]
     set f_out_clean [open [lindex $argv 1].trim.fasta "w"]
     set f_out_clean_qual  [open [lindex $argv 1].trim.qual  "w"]
+    set f_out_fastq [open [lindex $argv 1].trim.fastq  "w"]
     set f_bad [open [lindex $argv 2] "w"]
     set f_bcl [open [lindex $argv 3] "w"]
 	set exp_id [lindex $argv 4]
@@ -45,6 +46,7 @@ proc Sort_Table {argv} {
 
 	set dna_list ""
 	set qual_list ""
+	set fastq_list ""
 
 	set n 4
 
@@ -76,23 +78,32 @@ proc Sort_Table {argv} {
 		set value_max_diff [expr $value_max1 - $value_max2]
 		### QUALITY SCORES ### 2008 March 25
 		set current_quality "X"
+		set fastq_quality "!"
 		set value_ratio     "X.XXXXXXXX"
 		if { $value_max1 != 0 } {
 			set value_ratio [expr $value_max2/$value_max1]
 			if { $value_ratio <= 0.2 } {
 				set current_quality "A"
+				set fastq_quality "I"
 			}
 			if { $value_ratio <= 0.4 && $value_ratio > 0.2 } {
 				set current_quality "B"
+				set fastq_quality "9"
 			}
 			if { $value_ratio <= 0.6 && $value_ratio > 0.4 } {
 				set current_quality "C"
+				set fastq_quality "5"
 			}
 			if { $value_ratio <= 0.8 && $value_ratio > 0.6 } {
 				set current_quality "D"
+				set fastq_quality "0"
 			}
 			if { $value_ratio > 0.8 } {
 				set current_quality "F"
+				set fastq_quality "+"
+			}
+			if { $value_ratio > 0.9 } {
+				set fastq_quality "#"
 			}
 		}
 		if { $value_max1 >= $quality_upper_limit } {
@@ -144,6 +155,7 @@ proc Sort_Table {argv} {
 		### PUT ALL TOGETHER ###
 		set dna_list [ lappend dna_list $base_call ]
 		set qual_list [ lappend qual_list $current_quality ]
+		set fastq_list [ lappend fastq_list $fastq_quality ]
 
 		if { $first_x == $number_of_runs } {
 			set cut_q "--"
@@ -161,6 +173,7 @@ proc Sort_Table {argv} {
 	# puts $f_out "$num_str"
 	set dna_string [join $dna_list ""]
 	set qual_string [join $qual_list ""]
+	set fastq_string [join $fastq_list ""]
 	set dna_clean $dna_string
 
 	set string_quality [string range $dna_string 0 [expr $good_length-1]]
@@ -239,6 +252,7 @@ proc Sort_Table {argv} {
 		### {}
 
 		set clean_quality_string [string range $qual_string 0 [expr $clean_length - 1]]
+		set fastq_string_clean [string range $fastq_string 0 [expr $clean_length - 1]]
 		set fffff_quality_string $clean_quality_string
 		regsub -all {f} $fffff_quality_string "" fffff_quality_string
 		regsub -all {F} $fffff_quality_string "" fffff_quality_string
@@ -257,6 +271,14 @@ proc Sort_Table {argv} {
 		puts $f_out_clean_qual "\>$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  |  \( $gc_status: $gc_length\/$clean_length \)  \[ ABCD_Q:$abcd_qual_length  F_QUAL:$ffff_qual_length \]  \[ Q_FRACT:$abcd_qual_fract \]  "
 		puts $f_out_clean_qual $clean_quality_string
 		puts $f_out_clean_qual ""
+
+		if { $gc_status == "___GC___" } {
+			puts $f_out_fastq "\@$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y"
+			puts $f_out_fastq $dna_clean
+			puts $f_out_fastq "\+"
+			puts $f_out_fastq $fastq_string_clean
+			puts $f_out_fastq ""
+		}
 
 	}
 
@@ -306,6 +328,7 @@ proc Sort_Table {argv} {
     close $f_out_qual
     close $f_out_clean
     close $f_out_clean_qual
+    close $f_out_fastq
     close $f_bad
     close $f_bcl
     puts ""
