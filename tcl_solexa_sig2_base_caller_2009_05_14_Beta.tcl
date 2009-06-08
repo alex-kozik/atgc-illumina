@@ -1,20 +1,19 @@
 #!/usr/bin/tcl
 
-proc Sort_Table {argv} {
+proc Sig2_Table {argv} {
 
-    # set exp_id "SAAA_"
-    # set upper_cut 600
-    # set upper_cut 400
-    # set upper_dif 200
-    # set upper_dif 100
+    #### PARAMETERS ####
     set upper_cut 200
     set upper_dif 60
     set good_diff 100
-    set number_of_runs 100
     set quality_upper_limit 1000
     set good_length 24
-	set gc_upper 0.8
-	set gc_lower 0.2
+    set gc_upper 0.8
+    set gc_lower 0.2
+    ##  END OF PARAM  ##
+
+    set print_bad_file "TRUE"
+    ### set print_bad_file "FALSE"
 
     set f_in1 [open [lindex $argv 0] "r"]
     set f_out [open [lindex $argv 1] "w"]
@@ -24,7 +23,18 @@ proc Sort_Table {argv} {
     set f_out_fastq [open [lindex $argv 1].trim.fastq  "w"]
     set f_bad [open [lindex $argv 2] "w"]
     set f_bcl [open [lindex $argv 3] "w"]
-	set exp_id [lindex $argv 4]
+    set exp_id [lindex $argv 4]
+    set cycle_first [lindex $argv 5]
+    set cycle_last  [lindex $argv 6]
+
+    ### TRIMMING WITH ADAPTER OPTIONS ###
+    set number_of_runs $cycle_last
+    set trimming_with_adapter "FALSE"
+    ### set trimming_with_adapter "TRUE"
+    set adapter_seqs "TCGTAT"
+    set adapter_status "_NOT_FOUND_"
+    ### END OF TRIMMING WITH ADAPTER ###
+
 
     ####### READ ID LIST TO EXTRACT #######
     set k 1
@@ -35,8 +45,6 @@ proc Sort_Table {argv} {
 	set cell_id  [lindex $data_str 1]
 	set coord_x  [lindex $data_str 2]
 	set coord_y  [lindex $data_str 3]
-	# set num_str  [lindex $data_str 4]
-	# set num_str  [string trim $num_str]
 
 	puts "line: $k\tlength: $data_len"
 
@@ -48,13 +56,17 @@ proc Sort_Table {argv} {
 	set qual_list ""
 	set fastq_list ""
 
-	set n 4
+	### set n 4
+	### 5-TH COLUMN CONTAIN DATA FOR FIRST CYCLE ###
+	set data_list_start [expr  4 + $cycle_first - 1]
+	set data_list_end   [expr  4 + $cycle_last -  1]
+	set n $data_list_start
 
 	# set first_x 0
 	set first_x $number_of_runs
 	set x_found "FALSE"
 
-	while { $n <= [expr $data_len - 1] } {
+	while { $n <= [expr $data_list_end] } {
 		set num_str  [lindex $data_str $n]
 		set num_str  [string trim $num_str]
 		# four times
@@ -190,6 +202,18 @@ proc Sort_Table {argv} {
 	regsub -all {X.*} $dna_clean "" dna_clean
 	regsub -all {\*.*} $dna_clean "" dna_clean 
 
+	####### SPECIAL CASE WITH ADAPTER TRIMMING #######
+	if { $trimming_with_adapter == "TRUE" } {
+		set dna_clean [string toupper $dna_clean]
+		set adapter_status "_NOT_FOUND_"
+		set adapter_found [string first $adapter_seqs $dna_clean]
+		if { $adapter_found >= 0 } {
+			set adapter_status "_$adapter_seqs\_"
+		}
+		regsub -all {$adapter_seqs.*} $dna_clean "" dna_clean
+	}
+	##################################################
+
 	set clean_length [string length $dna_clean]
 
 	set clean_upper [string toupper $dna_clean]
@@ -234,22 +258,11 @@ proc Sort_Table {argv} {
 
 	set fail_str $first_x
 
-	if { $fail_str == 100 } {
+	if { $fail_str == $number_of_runs  } {
 		set fail_str "--"
 	}
 
 	if { $clean_length >= $good_length } {
-
-		### set super_quality "QUAL_ABCD"
-
-		### set find_me_F [string first "F" [string range $qual_string 0 [expr $clean_length - 1]]]
-		### set find_me_f [string first "f" [string range $qual_string 0 [expr $clean_length - 1]]]
-		### set find_me_D [string first "D" [string range $qual_string 0 [expr $clean_length - 1]]]
-		### set find_me_d [string first "d" [string range $qual_string 0 [expr $clean_length - 1]]]
-
-		### if { $find_me_F != -1 || $find_me_f != -1 } {}
-		###	set super_quality "QUAL_FLOW"
-		### {}
 
 		set clean_quality_string [string range $qual_string 0 [expr $clean_length - 1]]
 		set fastq_string_clean [string range $fastq_string 0 [expr $clean_length - 1]]
@@ -262,8 +275,6 @@ proc Sort_Table {argv} {
 		set abcd_qual_fract  [expr ceil($abcd_qual_fract)]
 		set abcd_qual_fract  [expr  int($abcd_qual_fract)]
 
-		### puts $f_out_clean "\>$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  |  LINE: $k  \[ LENGTH: $clean_length \]  \( $gc_status: $gc_length\/$clean_length \)  $super_quality  "
-
 		puts $f_out_clean "\>$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  |  LINE: $k  \[ LENGTH: $clean_length \]  \( $gc_status: $gc_length\/$clean_length \)  \[ ABCD_Q:$abcd_qual_length  F_QUAL:$ffff_qual_length \]  \[ Q_FRACT:$abcd_qual_fract \]  "
 		puts $f_out_clean "$dna_clean"
 		puts $f_out_clean ""
@@ -273,7 +284,13 @@ proc Sort_Table {argv} {
 		puts $f_out_clean_qual ""
 
 		if { $gc_status == "___GC___" } {
-			puts $f_out_fastq "\@$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y"
+			if { $trimming_with_adapter == "TRUE" } {
+				puts $f_out_fastq "\@$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  $adapter_status \: $adapter_found"
+			}
+			if { $trimming_with_adapter == "FALSE" } {
+				puts $f_out_fastq "\@$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y"
+				set dna_clean [string toupper $dna_clean]
+			}
 			puts $f_out_fastq $dna_clean
 			puts $f_out_fastq "\+"
 			puts $f_out_fastq $fastq_string_clean
@@ -285,13 +302,12 @@ proc Sort_Table {argv} {
 	if { $first_x >= [expr $good_length+1] } {
 
 		# COUNT ABCD and F QUALITY #
-
 		set qall_length [string length $qual_string]
 		set qfff_string $qual_string
-		regsub -all {f} $qfff_string "" qfff_string
-		regsub -all {F} $qfff_string "" qfff_string
 		regsub -all {x} $qfff_string "" qfff_string
 		regsub -all {X} $qfff_string "" qfff_string
+		regsub -all {f} $qfff_string "" qfff_string
+		regsub -all {F} $qfff_string "" qfff_string
 
 		set abcd_length [string length $qfff_string]
 		set qfx_length  [expr $qall_length - $abcd_length]
@@ -299,23 +315,32 @@ proc Sort_Table {argv} {
 		set abcd_fract  [expr ceil($abcd_fract)]
 		set abcd_fract  [expr  int($abcd_fract)]
 
-		puts $f_out "\>$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  |  LINE: $k  \[ FAIL: $fail_str \]  ::  $string_qual :: CLEAN_LENGTH: $clean_length  \[ ABCD_Q:$abcd_length  F_QUAL:$qfx_length \]  \[ Q_FRACT:$abcd_fract \]  "
-		puts $f_out "$dna_string"
-		puts $f_out ""
+		if { $abcd_length >= 20 } {
 
-		puts $f_out_qual "\>$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  \[ ABCD_Q:$abcd_length  F_QUAL:$qfx_length \]  \[ Q_FRACT:$abcd_fract \]  "
-		puts $f_out_qual "$qual_string"
-		puts $f_out_qual ""
+			puts $f_out "\>$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  |  LINE: $k  \[ FAIL: $fail_str \]  ::  $string_qual :: CLEAN_LENGTH: $clean_length  \[ ABCD_Q:$abcd_length  F_QUAL:$qfx_length \]  \[ Q_FRACT:$abcd_fract \]  "
+			puts $f_out "$dna_string"
+			puts $f_out ""
+
+			puts $f_out_qual "\>$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  \[ ABCD_Q:$abcd_length  F_QUAL:$qfx_length \]  \[ Q_FRACT:$abcd_fract \]  "
+			puts $f_out_qual "$qual_string"
+			puts $f_out_qual ""
+
+		}
+
+		if { $abcd_length <  20 && $print_bad_file == "TRUE" } {
+			puts $f_bad "\>$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  |  LINE: $k  \[ FAIL: $fail_str \]  ::  $string_qual :: CLEAN_LENGTH: $clean_length "
+			puts $f_bad "$dna_string"
+			puts $f_bad ""
+		}
 
 	}
-    if { $first_x  < [expr $good_length+1] } {
+
+    if { $first_x  < [expr $good_length+1] && $print_bad_file == "TRUE" } {
         puts $f_bad "\>$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  |  LINE: $k  \[ FAIL: $fail_str \]  ::  $string_qual :: CLEAN_LENGTH: $clean_length "
 		puts $f_bad "$dna_string"
 		puts $f_bad ""
     }
 
-	# puts $f_out ""
-	# puts $f_bad ""
 	if { $k <= 10000 } {
 		puts $f_bcl ""
 	}
@@ -335,10 +360,10 @@ proc Sort_Table {argv} {
     puts "DONE"
 }
 
-if {$argc != 5} {
+if {$argc != 7} {
     puts "Program usage:"
-    puts "Table_to_Process, output_file_good, output_file_bad, output_file_base_call, id_prefix"
+    puts "Table_to_Process, output_file_good, output_file_bad, output_file_debug, id_prefix, cycle_first, cycle_last"
 } else {
-    Sort_Table $argv
+    Sig2_Table $argv
 }
 
