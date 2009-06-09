@@ -3,13 +3,16 @@
 proc Sig2_Table {argv} {
 
     #### PARAMETERS ####
-    set upper_cut 200
-    set upper_dif 60
-    set good_diff 100
-    set quality_upper_limit 1000
-    set good_length 24
-    set gc_upper 0.8
-    set gc_lower 0.2
+    set upper_cut 200			; # DONT CALL IF MAX VALUE BELOW THIS CUTOFF
+    set upper_dif 60			; # ACCEPTABLE DIFF BETWEEN VALUES
+    set good_diff 100			; # GOOD DIFF BETWEEN VALUES
+    set quality_upper_cut 1000	; # QUALITY IN CAPITAL LETTERS ABOVE THIS VALUE
+    set quality_len_cut 20		; # CUTOFF LENGTH OF ACCEPTABLE QUALITY SCORES
+    set good_length 24			; # GOOD DNA LENGTH CUTOFF
+    set gc_upper 0.8			; # UPPER GC CONTENT CUTOFF
+    set gc_lower 0.2			; # LOWER GC CONTENT CUTOFF
+    set max_reads_debug 10000		; # NUMBER OF SEQUENCES IN DEBUG FILE
+    set sig2_val_start 4		; # COLUMN NUMBER WITH FIRST VALUES - QUADRO SET - COUNT FROM ZERO
     ##  END OF PARAM  ##
 
     set print_bad_file "TRUE"
@@ -48,7 +51,14 @@ proc Sig2_Table {argv} {
 
 	puts "line: $k\tlength: $data_len"
 
-	if { $k <= 10000 } {
+	if { $k <= $max_reads_debug } {
+		if { $cycle_last > [expr $data_len - $sig2_val_start]} {
+			puts ""
+			puts "LAST CYCLE WITH TOO LARGE VALUE: $cycle_last"
+			puts "MAX ALLOWED: [expr $data_len - $sig2_val_start]"
+			puts ""
+			exit
+		}
 		puts $f_bcl "\>$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  COUNT: $k"
 	}
 
@@ -56,10 +66,9 @@ proc Sig2_Table {argv} {
 	set qual_list ""
 	set fastq_list ""
 
-	### set n 4
-	### 5-TH COLUMN CONTAIN DATA FOR FIRST CYCLE ###
-	set data_list_start [expr  4 + $cycle_first - 1]
-	set data_list_end   [expr  4 + $cycle_last -  1]
+	### 5-TH COLUMN CONTAIN DATA FOR FIRST CYCLE - COUNT FROM 1 ###
+	set data_list_start [expr  $sig2_val_start + $cycle_first - 1]
+	set data_list_end   [expr  $sig2_val_start + $cycle_last  - 1]
 	set n $data_list_start
 
 	# set first_x 0
@@ -75,7 +84,7 @@ proc Sig2_Table {argv} {
 		regsub -all {  } $num_str " " num_str
 		regsub -all {  } $num_str " " num_str
 		regsub -all { } $num_str "\t" num_str
-		set val_pos  [expr $n - 3]
+		set val_pos  [expr $n - $sig2_val_start + 1]
 		# ACGT values
 		set val_A [lindex $num_str 0]
 		set val_C [lindex $num_str 1]
@@ -118,10 +127,10 @@ proc Sig2_Table {argv} {
 				set fastq_quality "#"
 			}
 		}
-		if { $value_max1 >= $quality_upper_limit } {
+		if { $value_max1 >= $quality_upper_cut } {
 			set current_quality [string toupper $current_quality]
 		}
-		if { $value_max1 <  $quality_upper_limit } {
+		if { $value_max1 <  $quality_upper_cut } {
 			set current_quality [string tolower $current_quality]
 		}
 		if { $value_max1 <  $upper_cut } {
@@ -176,7 +185,7 @@ proc Sig2_Table {argv} {
 			set cut_q $first_x
 		}
 
-		if { $k <= 10000 } {
+		if { $k <= $max_reads_debug } {
 			puts $f_bcl "$val_pos\:\tA:$val_A\tC:$val_C\tG:$val_G\tT:$val_T\t$value_status\tBASE_CALL:-> $base_call\tFIRST_FAIL: $cut_q  MAX_DIFF: $value_max_diff  RATIO: $value_ratio  QUALITY: $current_quality"
 		}
 		incr n
@@ -315,7 +324,7 @@ proc Sig2_Table {argv} {
 		set abcd_fract  [expr ceil($abcd_fract)]
 		set abcd_fract  [expr  int($abcd_fract)]
 
-		if { $abcd_length >= 20 } {
+		if { $abcd_length >= $quality_len_cut } {
 
 			puts $f_out "\>$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  |  LINE: $k  \[ FAIL: $fail_str \]  ::  $string_qual :: CLEAN_LENGTH: $clean_length  \[ ABCD_Q:$abcd_length  F_QUAL:$qfx_length \]  \[ Q_FRACT:$abcd_fract \]  "
 			puts $f_out "$dna_string"
@@ -327,7 +336,7 @@ proc Sig2_Table {argv} {
 
 		}
 
-		if { $abcd_length <  20 && $print_bad_file == "TRUE" } {
+		if { $abcd_length <  $quality_len_cut && $print_bad_file == "TRUE" } {
 			puts $f_bad "\>$exp_id$line_id\_$cell_id\_$coord_x\_$coord_y  |  LINE: $k  \[ FAIL: $fail_str \]  ::  $string_qual :: CLEAN_LENGTH: $clean_length "
 			puts $f_bad "$dna_string"
 			puts $f_bad ""
@@ -341,7 +350,7 @@ proc Sig2_Table {argv} {
 		puts $f_bad ""
     }
 
-	if { $k <= 10000 } {
+	if { $k <= $max_reads_debug } {
 		puts $f_bcl ""
 	}
 
