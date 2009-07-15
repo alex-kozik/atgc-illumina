@@ -3,7 +3,7 @@
 proc Sig2_Table {argv} {
 
     #### PARAMETERS ####
-    set upper_cut 200			; # DONT CALL IF MAX VALUE BELOW THIS CUTOFF
+    set upper_cut 180			; # DONT CALL IF MAX VALUE BELOW THIS CUTOFF
     set upper_dif 60			; # ACCEPTABLE DIFF BETWEEN VALUES
     set good_diff 100			; # GOOD DIFF BETWEEN VALUES
     set quality_upper_cut 1000	; # QUALITY IN CAPITAL LETTERS ABOVE THIS VALUE
@@ -49,7 +49,10 @@ proc Sig2_Table {argv} {
 	set coord_x  [lindex $data_str 2]
 	set coord_y  [lindex $data_str 3]
 
-	puts "line: $k\tlength: $data_len"
+	set k_mod [expr fmod($k,1000)]
+	if { $k_mod == 0 } {
+		puts "line: $k\tlength: $data_len"
+	}
 
 	if { $k <= $max_reads_debug } {
 		if { $cycle_last > [expr $data_len - $sig2_val_start]} {
@@ -102,7 +105,7 @@ proc Sig2_Table {argv} {
 		set fastq_quality "!"
 		set value_ratio     "X.XXXXXXXX"
 		if { $value_max1 != 0 } {
-			set value_ratio [expr $value_max2/$value_max1]
+			set value_ratio [expr ($value_max2*1.0)/$value_max1]
 			if { $value_ratio <= 0.2 } {
 				set current_quality "A"
 				set fastq_quality "I"
