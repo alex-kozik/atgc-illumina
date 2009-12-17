@@ -1,4 +1,5 @@
-#Illumina_Quality_Scores
+#labels Featured
+#Illumina Quality Scores
 
 = Illumina Quality Scores and FastQ files=
 
