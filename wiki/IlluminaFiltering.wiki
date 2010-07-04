@@ -35,3 +35,5 @@ B - very good
 C - good
 D - acceptable
 F - not reliable
+
+see the latest version of the script at http://code.google.com/p/atgc-illumina/source/browse/#svn/trunk
