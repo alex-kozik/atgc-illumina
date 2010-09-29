@@ -40,3 +40,27 @@ tclsh8.4 tcl_solexa_qseq_parser_2010_01_20.tcl illumina_qseq_test2A_.100K.txt il
 
 see example input and output files on Download web page:
 [http://code.google.com/p/atgc-illumina/downloads/list]
+
+Additional trimming for remaining adaptor sequence and homogeneous tails can be done using following regular expressions:
+
+{{{
+-bash-3.00$ perl -p -i -e 's/AGATCGGAAGAGCGGT.*//' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/AGATCGGAAGAGCGG\n/\n/' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/AGATCGGAAGAGCG\n/\n/' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/AGATCGGAAGAGC\n/\n/' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/AGATCGGAAGAG\n/\n/' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/AGATCGGAAGA\n/\n/' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/AGATCGGAAG\n/\n/' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/AGATCGGAA\n/\n/' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/AGATCGGA\n/\n/' z-trim-test.trim
+
+-bash-3.00$ perl -p -i -e 's/^A{8,}//' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/^T{8,}//' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/^C{8,}//' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/^G{8,}//' z-trim-test.trim
+
+-bash-3.00$ perl -p -i -e 's/A{8,}$//' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/T{8,}$//' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/G{8,}$//' z-trim-test.trim
+-bash-3.00$ perl -p -i -e 's/C{8,}$//' z-trim-test.trim
+}}}
