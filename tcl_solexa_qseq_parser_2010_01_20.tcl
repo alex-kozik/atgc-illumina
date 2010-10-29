@@ -65,7 +65,8 @@ proc Process_Qseq {argv} {
 		}
 		
 		### SELECT SUBSTRING ###
-		set trimmed_fasta [string range $seq_lmt  $tag_l  [expr $clean_length_a-1]]
+		# set trimmed_fasta [string range $seq_lmt  $tag_l  [expr $clean_length_a-1]]
+		set trimmed_fasta [string range $seq_lmt  0  [expr $clean_length_a-1]]
 		
 		set adaptor_str ""
 		### ADAPTOR TRIMMING ###
@@ -169,9 +170,15 @@ proc Process_Qseq {argv} {
 }
 
 proc Adaptor_Trimming { trimmed_fasta } {
+	### NGB00361.1:1-92 Illumina PCR Primer
+	regsub -all -line {AGATCGGAAGAGCGTC.*} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {AGATCGGAAGAGCGTC$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {AGATCGGAAGAGCGT$} $trimmed_fasta "" trimmed_fasta
+	### NGB00362.1:1-61 Illumina Paired End PCR Primer 2.0
 	regsub -all -line {AGATCGGAAGAGCGGT.*} $trimmed_fasta "" trimmed_fasta
 	regsub -all -line {AGATCGGAAGAGCGGT$} $trimmed_fasta "" trimmed_fasta
 	regsub -all -line {AGATCGGAAGAGCGG$} $trimmed_fasta "" trimmed_fasta
+	### COMMON ADAPTOR ###
 	regsub -all -line {AGATCGGAAGAGCG$} $trimmed_fasta "" trimmed_fasta
 	regsub -all -line {AGATCGGAAGAGC$} $trimmed_fasta "" trimmed_fasta
 	regsub -all -line {AGATCGGAAGAG$} $trimmed_fasta "" trimmed_fasta
