@@ -2,9 +2,9 @@
 
 proc Process_Qseq {argv} {
 
-    ### GC CONTENT WINDOW ###
-    set gc_lower 0.2
-    set gc_upper 0.8
+	### GC CONTENT WINDOW ###
+	set gc_lower 0.2
+	set gc_upper 0.8
 
 	### ADAPTOR TRIMMING STATUS ###
 	set adaptor_trim "TRUE"
@@ -14,21 +14,32 @@ proc Process_Qseq {argv} {
 	set lowcompl_trim "TRUE"
 	# set lowcompl_trim "FALSE"
 	
-    ### INPUT - OUTPUT FILES ###
-    set f_in1  [open [lindex $argv 0] "r"]
-    set f_tab  [open [lindex $argv 1].trim.tab "w"]
-    set f_fsq  [open [lindex $argv 1].trim.fastq "w"]
-    set f_fst  [open [lindex $argv 1].trim.fasta "w"]
+	### INPUT - OUTPUT FILES ###
+	set f_in1  [open [lindex $argv 0] "r"]
+	set f_tab  [open [lindex $argv 1].trim.tab "w"]
+	set f_fsq  [open [lindex $argv 1].trim.fastq "w"]
+	set f_fst  [open [lindex $argv 1].trim.fasta "w"]
+	set f_log  [open [lindex $argv 1].trim.xlog "w"]
 
-    ### PARAMETERS ###
-    set tag_l  [lindex $argv 2]
-    set r_len  [lindex $argv 3]
-    set length_min [lindex $argv 4]
+	### PARAMETERS ###
+	set tag_l  [lindex $argv 2]
+	set r_len  [lindex $argv 3]
+	set length_min [lindex $argv 4]
 
-    ####### READ AND PROCESS QSEQ DATA #######
-    set l 0
-    set g 0
-    while { [gets $f_in1 current_line] >= 0 } {
+	puts $f_log  "TAG__L: $tag_l"
+	puts $f_log  "READ_L: $r_len"
+	puts $f_log  "MIN__L: $length_min"
+	
+	####### READ AND PROCESS QSEQ DATA #######
+	set l 0
+	set g 0
+	set adp_count 0		; # ADAPTOR COUNT
+	set hpl_count 0		; # HOMOPOLYMER COUNT
+	set gc_low_count 0
+	set gc_high_count 0
+	set gc_ok_count 0
+	
+	while { [gets $f_in1 current_line] >= 0 } {
 	set current_data [split $current_line "\t"]
 	set machine [lindex $current_data  0]
 	set run_id  [lindex $current_data  1]
@@ -76,6 +87,7 @@ proc Process_Qseq {argv} {
 			set adp_after  [string length $trimmed_fasta]
 			if { $adp_after < $adp_before } {
 				set adaptor_str   " _ADP_TRM_ "
+				incr adp_count
 			}
 		}
 		
@@ -87,6 +99,7 @@ proc Process_Qseq {argv} {
 			set low_after  [string length $trimmed_fasta]
 			if { $low_after < $low_before } {
 				set low_compl_str " LCMPL_TRM "
+				incr hpl_count
 			}
 		}
 		
@@ -110,18 +123,21 @@ proc Process_Qseq {argv} {
 		regsub -all {T} $clean_upper "" clean_upper
 		set gc_length [string length $clean_upper]
 		set gc_ratio -1
-		if { $trm_len != 0 } {
+		if { $trm_len >= $length_min } {
 			set gc_ratio [expr $gc_length*1.00/$trm_len]
 		}
 		set gc_status "UNKNOWN"
-		if { $gc_ratio >= $gc_upper && $trm_len != 0 } {
-                	set gc_status "UPPER_GC"
+		if { $gc_ratio > $gc_upper && $trm_len >= $length_min } {
+			set gc_status "UPPER_GC"
+			incr gc_low_count
 		}
-		if { $gc_ratio <= $gc_lower && $trm_len != 0 } {
+		if { $gc_ratio < $gc_lower && $trm_len >= $length_min } {
 			set gc_status "LOWER_GC"
-        	}
-		if { $gc_ratio > $gc_lower && $gc_ratio < $gc_upper && $trm_len != 0 } {
+			incr gc_high_count
+			}
+		if { $gc_ratio >= $gc_lower && $gc_ratio <= $gc_upper && $trm_len >= $length_min } {
 			set gc_status "___GC___"
+			incr gc_ok_count
 		}
 		### TAG INFO ###
 		if { $tag_l == 0 } {
@@ -150,35 +166,42 @@ proc Process_Qseq {argv} {
 		}
 	}
 
-        set k_mod [expr fmod($l,1000)]
-        if { $k_mod == 0 } {
-                puts " - $g  OUT OF  - $l "
-        }
+		set k_mod [expr fmod($l,1000)]
+		if { $k_mod == 0 } {
+			puts " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count "
+			puts "LOW_GC: $gc_low_count      HIGH_GC: $gc_high_count      OK_GC: $gc_ok_count"
+		}
 	incr l
-    }
-    close $f_in1
-    close $f_tab
-    close $f_fsq
-    close $f_fst
+	}
+	close $f_in1
+	close $f_tab
+	close $f_fsq
+	close $f_fst
 
-    puts " -+-+-+-+-+-+-+-+-+-+-+-+-+- "
-    puts " - $g  OUT OF  - $l "
-    puts " -+-+-+-+-+-+-+-+-+-+-+-+-+- "
+	puts " -+-+-+-+-+-+-+-+-+-+-+-+-+- "
+	puts " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count "
+	puts "LOW_GC: $gc_low_count      HIGH_GC: $gc_high_count      OK_GC: $gc_ok_count"
+	puts $f_log " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count "
+	puts $f_log "LOW_GC: $gc_low_count      HIGH_GC: $gc_high_count      OK_GC: $gc_ok_count"
+	puts " -+-+-+-+-+-+-+-+-+-+-+-+-+- "
 
-    puts ""
-    puts "DONE"
+	close $f_log
+
+	puts ""
+	puts "DONE"
 }
 
 proc Adaptor_Trimming { trimmed_fasta } {
 	### NGB00361.1:1-92 Illumina PCR Primer
-	regsub -all -line {AGATCGGAAGAGCGTC.*} $trimmed_fasta "" trimmed_fasta
-	regsub -all -line {AGATCGGAAGAGCGTC$} $trimmed_fasta "" trimmed_fasta
-	regsub -all -line {AGATCGGAAGAGCGT$} $trimmed_fasta "" trimmed_fasta
+	# regsub -all -line {AGATCGGAAGAGCGTC.*} $trimmed_fasta "" trimmed_fasta
+	# regsub -all -line {AGATCGGAAGAGCGTC$} $trimmed_fasta "" trimmed_fasta
+	# regsub -all -line {AGATCGGAAGAGCGT$} $trimmed_fasta "" trimmed_fasta
 	### NGB00362.1:1-61 Illumina Paired End PCR Primer 2.0
-	regsub -all -line {AGATCGGAAGAGCGGT.*} $trimmed_fasta "" trimmed_fasta
-	regsub -all -line {AGATCGGAAGAGCGGT$} $trimmed_fasta "" trimmed_fasta
-	regsub -all -line {AGATCGGAAGAGCGG$} $trimmed_fasta "" trimmed_fasta
+	# regsub -all -line {AGATCGGAAGAGCGGT.*} $trimmed_fasta "" trimmed_fasta
+	# regsub -all -line {AGATCGGAAGAGCGGT$} $trimmed_fasta "" trimmed_fasta
+	# regsub -all -line {AGATCGGAAGAGCGG$} $trimmed_fasta "" trimmed_fasta
 	### COMMON ADAPTOR ###
+	regsub -all -line {AGATCGGAAGAGCG.*} $trimmed_fasta "" trimmed_fasta
 	regsub -all -line {AGATCGGAAGAGCG$} $trimmed_fasta "" trimmed_fasta
 	regsub -all -line {AGATCGGAAGAGC$} $trimmed_fasta "" trimmed_fasta
 	regsub -all -line {AGATCGGAAGAG$} $trimmed_fasta "" trimmed_fasta
@@ -202,8 +225,8 @@ proc LowCompl_Trimming { trimmed_fasta } {
 }
 
 if {$argc != 5} {
-    puts "Program usage:"
-    puts "qseq_file_to_process, output_file, tag_length, read_length, min_length_cutoff"
+	puts "Program usage:"
+	puts "qseq_file_to_process, output_file, tag_length, read_length, min_length_cutoff"
 } else {
-    Process_Qseq $argv
+	Process_Qseq $argv
 }
