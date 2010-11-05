@@ -23,7 +23,7 @@ proc Process_Qseq {argv} {
     while { [gets $f_in1 current_line] >= 0 } {
 	set current_data [split $current_line "\t"]
 	set machine [lindex $current_data  0]
-    set run_id  [lindex $current_data  1]
+	set run_id  [lindex $current_data  1]
 	set lane_n  [lindex $current_data  2]
 	set tile_n  [lindex $current_data  3]
 	set coordx  [lindex $current_data  4]
