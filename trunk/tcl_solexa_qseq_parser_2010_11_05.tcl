@@ -1,7 +1,9 @@
 #!/usr/bin/tcl
 
 proc Process_Qseq {argv} {
-
+	
+	set mod_val 100000
+	
 	### GC CONTENT WINDOW ###
 	set gc_lower 0.2
 	set gc_upper 0.8
@@ -20,6 +22,8 @@ proc Process_Qseq {argv} {
 	set f_fsq  [open [lindex $argv 1].trim.fastq "w"]
 	set f_fst  [open [lindex $argv 1].trim.fasta "w"]
 	set f_log  [open [lindex $argv 1].trim.xlog "w"]
+	set f_gch  [open [lindex $argv 1].trim.xgch.fa "w"]		; # HIGH GC CONTENT
+	set f_gcl  [open [lindex $argv 1].trim.xgcl.fa "w"]		; # LOW GC CONTENT
 
 	### PARAMETERS ###
 	set tag_l  [lindex $argv 2]
@@ -125,15 +129,16 @@ proc Process_Qseq {argv} {
 		set gc_ratio -1
 		if { $trm_len >= $length_min } {
 			set gc_ratio [expr $gc_length*1.00/$trm_len]
+			set gc_intgr [expr int(round($gc_ratio*100))]
 		}
 		set gc_status "UNKNOWN"
 		if { $gc_ratio > $gc_upper && $trm_len >= $length_min } {
-			set gc_status "UPPER_GC"
-			incr gc_low_count
+			set gc_status "HIGH_GC"
+			incr gc_high_count
 		}
 		if { $gc_ratio < $gc_lower && $trm_len >= $length_min } {
-			set gc_status "LOWER_GC"
-			incr gc_high_count
+			set gc_status "LOW__GC"
+			incr gc_low_count
 			}
 		if { $gc_ratio >= $gc_lower && $gc_ratio <= $gc_upper && $trm_len >= $length_min } {
 			set gc_status "___GC___"
@@ -142,34 +147,52 @@ proc Process_Qseq {argv} {
 		### TAG INFO ###
 		if { $tag_l == 0 } {
 			set seq_tag "_NONE_"
+			# set fasta_id_str "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  "
 			set fasta_id_str "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  "
 		}
 		if { $tag_l >= 1 } {
 			set seq_tag [string range $seq_str   0 [expr $tag_l - 1]]
-			set fasta_id_str "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  \[ADPT\: _$seq_tag\_\]  TRM_LEN: $trm_len "
+			# set fasta_id_str "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  \[ADPT\: _$seq_tag\_\]  TRM_LEN: $trm_len "
+			fasta_id_str "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  \[ADPT\: _$seq_tag\_\]  TRM_LEN: $trm_len "
 		}
 		### SELECT ONLY HQ LONG READS ABOVE CUTOFF VALUE ###
 		if { $clean_length >= $length_min && $gc_status == "___GC___" } {
 			### TAB-DELIMITED FILE ###
 			puts $f_tab "$l\t\ DATA_LINE_START @$fasta_id_str _SEQS_NEW_LINE_ $seq_trm\ +$fasta_id_str _QUAL_NEW_LINE_ $qlt_trm END_OF_DATA_LINE "
 			### FAST-Q FILE ###
-			puts $f_fsq "\@$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_length\/$trm_len \) $adaptor_str $low_compl_str"
+			# puts $f_fsq "\@$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_length\/$trm_len \) $adaptor_str $low_compl_str"
+			puts $f_fsq "\@$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str"
 			puts $f_fsq $seq_trm
 			puts $f_fsq "\+"
 			puts $f_fsq $qlt_trm
 			puts $f_fsq ""
 			### FAST-A FILE ###
-			puts $f_fst "\>$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_length\/$trm_len \) $adaptor_str $low_compl_str"
+			# puts $f_fst "\>$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_length\/$trm_len \) $adaptor_str $low_compl_str"
+			puts $f_fst "\>$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str"
 			puts $f_fst $seq_trm
 			puts $f_fst ""
 			incr g
 		}
+		
+		if { $clean_length >= $length_min && $gc_status == "HIGH_GC" } {
+			puts $f_gch "\>$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str"
+			puts $f_gch $seq_trm
+			puts $f_gch ""
+			}
+		
+		if { $clean_length >= $length_min && $gc_status == "LOW__GC" } {
+			puts $f_gcl "\>$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str"
+			puts $f_gcl $seq_trm
+			puts $f_gcl ""
+		}
+		
 	}
 
-		set k_mod [expr fmod($l,1000)]
+		set k_mod [expr fmod($l,$mod_val)]
 		if { $k_mod == 0 } {
 			puts " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count "
 			puts "LOW_GC: $gc_low_count      HIGH_GC: $gc_high_count      OK_GC: $gc_ok_count"
+			puts " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - "
 		}
 	incr l
 	}
@@ -177,6 +200,8 @@ proc Process_Qseq {argv} {
 	close $f_tab
 	close $f_fsq
 	close $f_fst
+	close $f_gch
+	close $f_gcl
 
 	puts " -+-+-+-+-+-+-+-+-+-+-+-+-+- "
 	puts " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count "
