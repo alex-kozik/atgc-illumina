@@ -16,9 +16,16 @@ proc Process_Qseq {argv} {
 	set lowcompl_trim "TRUE"
 	# set lowcompl_trim "FALSE"
 	
+	### TAB FILE WITH TRIMMED QSEQ DATA ###
+	set tab_data "FALSE"
+	# set tab_data "TRUE"
+	
 	### INPUT - OUTPUT FILES ###
 	set f_in1  [open [lindex $argv 0] "r"]
-	set f_tab  [open [lindex $argv 1].trim.tab "w"]
+	set f_seq  [open [lindex $argv 1]._all.fastq "w"]		; # ALL QSEQ DATA CONVERTED TO FASTQ
+	if { $tab_data == "TRUE" } {
+		set f_tab  [open [lindex $argv 1].trim.tab "w"]
+	}
 	set f_fsq  [open [lindex $argv 1].trim.fastq "w"]
 	set f_fst  [open [lindex $argv 1].trim.fasta "w"]
 	set f_log  [open [lindex $argv 1].trim.xlog "w"]
@@ -60,7 +67,7 @@ proc Process_Qseq {argv} {
 	### LIMIT SEQS TO SELECTED LENGTH ###
 	set seq_lmt [string  range  $seq_str  0  $r_len]
 	set seq_qlt [string  range  $seq_qlt  0  $r_len]
-
+	
 	### SELECT ILLUMINA HQ FILTERED READS ONLY ###
 	if { $seq_flt == 1 } {
 		### FIND B - LOW QUALITY CALLS ###
@@ -155,10 +162,13 @@ proc Process_Qseq {argv} {
 			# set fasta_id_str "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  \[ADPT\: _$seq_tag\_\]  TRM_LEN: $trm_len "
 			fasta_id_str "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  \[ADPT\: _$seq_tag\_\]  TRM_LEN: $trm_len "
 		}
+		
 		### SELECT ONLY HQ LONG READS ABOVE CUTOFF VALUE ###
 		if { $clean_length >= $length_min && $gc_status == "___GC___" } {
 			### TAB-DELIMITED FILE ###
-			puts $f_tab "$l\t\ DATA_LINE_START @$fasta_id_str _SEQS_NEW_LINE_ $seq_trm\ +$fasta_id_str _QUAL_NEW_LINE_ $qlt_trm END_OF_DATA_LINE "
+			if { $tab_data == "TRUE" } {
+				puts $f_tab "$l\t\ DATA_LINE_START @$fasta_id_str _SEQS_NEW_LINE_ $seq_trm\ +$fasta_id_str _QUAL_NEW_LINE_ $qlt_trm END_OF_DATA_LINE "
+			}
 			### FAST-Q FILE ###
 			# puts $f_fsq "\@$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_length\/$trm_len \) $adaptor_str $low_compl_str"
 			puts $f_fsq "\@$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str"
@@ -195,13 +205,24 @@ proc Process_Qseq {argv} {
 			puts " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - "
 		}
 	incr l
+	
+	# FASTQ FILE WITH ALL DATA FROM QSEQ #
+	set fasta_id_head "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  "
+	puts $f_seq "\@$fasta_id_head  $l "
+	puts $f_seq $seq_lmt
+	puts $f_seq "\+"
+	puts $f_seq $seq_qlt
+	
 	}
 	close $f_in1
-	close $f_tab
+	if { $tab_data == "TRUE" } {
+		close $f_tab
+	}
 	close $f_fsq
 	close $f_fst
 	close $f_gch
 	close $f_gcl
+	close $f_seq
 
 	puts " -+-+-+-+-+-+-+-+-+-+-+-+-+- "
 	puts " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count "
