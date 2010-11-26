@@ -16,6 +16,10 @@ proc Process_Qseq {argv} {
 	set lowcompl_trim "TRUE"
 	# set lowcompl_trim "FALSE"
 	
+	### DNA TAG TRIM ###
+	# set dna_tag_trim "TRUE"
+	set dna_tag_trim "FALSE"
+	
 	### TAB FILE WITH TRIMMED QSEQ DATA ###
 	set tab_data "FALSE"
 	# set tab_data "TRUE"
@@ -46,6 +50,7 @@ proc Process_Qseq {argv} {
 	set g 0
 	set adp_count 0		; # ADAPTOR COUNT
 	set hpl_count 0		; # HOMOPOLYMER COUNT
+	set dna_count 0		; # DNA TAG COUNT
 	set gc_low_count 0
 	set gc_high_count 0
 	set gc_ok_count 0
@@ -114,6 +119,18 @@ proc Process_Qseq {argv} {
 			}
 		}
 		
+		set dna_tag_str ""
+		### DNA TAG TRIM ###
+		if { $dna_tag_trim == "TRUE" } {
+			set dna_before [string length $trimmed_fasta]
+			set trimmed_fasta [DNA_Tag_Trimming $trimmed_fasta]
+			set dna_after  [string length $trimmed_fasta]
+			if { $dna_after < $dna_before } {
+				set dna_tag_str "_TCGTATGCC_"
+				incr dna_count
+			}
+		}
+		
 		set clean_length_s [string length $trimmed_fasta]
 		
 		### FIND SMALLEST ###
@@ -171,27 +188,27 @@ proc Process_Qseq {argv} {
 			}
 			### FAST-Q FILE ###
 			# puts $f_fsq "\@$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_length\/$trm_len \) $adaptor_str $low_compl_str"
-			puts $f_fsq "\@$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str"
+			puts $f_fsq "\@$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str $dna_tag_str"
 			puts $f_fsq $seq_trm
 			puts $f_fsq "\+"
 			puts $f_fsq $qlt_trm
 			puts $f_fsq ""
 			### FAST-A FILE ###
 			# puts $f_fst "\>$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_length\/$trm_len \) $adaptor_str $low_compl_str"
-			puts $f_fst "\>$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str"
+			puts $f_fst "\>$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str $dna_tag_str"
 			puts $f_fst $seq_trm
 			puts $f_fst ""
 			incr g
 		}
 		
 		if { $clean_length >= $length_min && $gc_status == "HIGH_GC" } {
-			puts $f_gch "\>$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str"
+			puts $f_gch "\>$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str $dna_tag_str"
 			puts $f_gch $seq_trm
 			puts $f_gch ""
 			}
 		
 		if { $clean_length >= $length_min && $gc_status == "LOW__GC" } {
-			puts $f_gcl "\>$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str"
+			puts $f_gcl "\>$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str $dna_tag_str"
 			puts $f_gcl $seq_trm
 			puts $f_gcl ""
 		}
@@ -200,7 +217,7 @@ proc Process_Qseq {argv} {
 
 		set k_mod [expr fmod($l,$mod_val)]
 		if { $k_mod == 0 } {
-			puts " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count "
+			puts " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count    - BAR_COUNT: $dna_count"
 			puts "LOW_GC: $gc_low_count      HIGH_GC: $gc_high_count      OK_GC: $gc_ok_count"
 			puts " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - "
 		}
@@ -225,9 +242,9 @@ proc Process_Qseq {argv} {
 	close $f_seq
 
 	puts " -+-+-+-+-+-+-+-+-+-+-+-+-+- "
-	puts " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count "
+	puts " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count    - BAR_COUNT: $dna_count"
 	puts "LOW_GC: $gc_low_count      HIGH_GC: $gc_high_count      OK_GC: $gc_ok_count"
-	puts $f_log " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count "
+	puts $f_log " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count    - BAR_COUNT: $dna_count"
 	puts $f_log "LOW_GC: $gc_low_count      HIGH_GC: $gc_high_count      OK_GC: $gc_ok_count"
 	puts " -+-+-+-+-+-+-+-+-+-+-+-+-+- "
 
@@ -267,6 +284,12 @@ proc LowCompl_Trimming { trimmed_fasta } {
 	regsub -all -line {T{8,}$} $trimmed_fasta "" trimmed_fasta
 	regsub -all -line {G{8,}$} $trimmed_fasta "" trimmed_fasta
 	regsub -all -line {C{8,}$} $trimmed_fasta "" trimmed_fasta
+	return $trimmed_fasta
+}
+
+proc DNA_Tag_Trimming { trimmed_fasta } {
+	regsub -all -line {TCGTATGCC.*} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {TCGTATGCC$} $trimmed_fasta "" trimmed_fasta
 	return $trimmed_fasta
 }
 
