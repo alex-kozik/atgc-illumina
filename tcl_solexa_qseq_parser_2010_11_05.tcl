@@ -177,7 +177,7 @@ proc Process_Qseq {argv} {
 		if { $tag_l >= 1 } {
 			set seq_tag [string range $seq_str   0 [expr $tag_l - 1]]
 			# set fasta_id_str "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  \[ADPT\: _$seq_tag\_\]  TRM_LEN: $trm_len "
-			fasta_id_str "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  \[ADPT\: _$seq_tag\_\]  TRM_LEN: $trm_len "
+			set fasta_id_str "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  \[ADPT\: _$seq_tag\_\]  TRM_LEN: $trm_len "
 		}
 		
 		### SELECT ONLY HQ LONG READS ABOVE CUTOFF VALUE ###
