@@ -26,7 +26,8 @@ proc Process_Qseq {argv} {
 	
 	### INPUT - OUTPUT FILES ###
 	set f_in1  [open [lindex $argv 0] "r"]
-	set f_seq  [open [lindex $argv 1]._all.fastq "w"]		; # ALL QSEQ DATA CONVERTED TO FASTQ
+	set f_seq_0  [open [lindex $argv 1]._all_0.fastq "w"]		; # ALL  LOW QUALITY 0 QSEQ DATA CONVERTED TO FASTQ
+	set f_seq_1  [open [lindex $argv 1]._all_1.fastq "w"]		; # ALL HIGH QUALITY 1 QSEQ DATA CONVERTED TO FASTQ
 	if { $tab_data == "TRUE" } {
 		set f_tab  [open [lindex $argv 1].trim.tab "w"]
 	}
@@ -75,6 +76,13 @@ proc Process_Qseq {argv} {
 	
 	### SELECT ILLUMINA HQ FILTERED READS ONLY ###
 	if { $seq_flt == 1 } {
+	
+		set fasta_id_head "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  "
+		puts $f_seq_1 "\@$fasta_id_head  $l  Q:$seq_flt "
+		puts $f_seq_1 $seq_lmt
+		puts $f_seq_1 "\+ "
+		puts $f_seq_1 $seq_qlt
+	
 		### FIND B - LOW QUALITY CALLS ###
 		regsub -all {B.*} $seq_qlt "" trimmed_quality
 		set clean_length_q [string length $trimmed_quality]
@@ -190,7 +198,7 @@ proc Process_Qseq {argv} {
 			# puts $f_fsq "\@$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_length\/$trm_len \) $adaptor_str $low_compl_str"
 			puts $f_fsq "\@$fasta_id_str $l  TOT_LEN: $clean_length  \( $gc_status: $gc_intgr \) $adaptor_str $low_compl_str $dna_tag_str"
 			puts $f_fsq $seq_trm
-			puts $f_fsq "\+"
+			puts $f_fsq "\+ "
 			puts $f_fsq $qlt_trm
 			puts $f_fsq ""
 			### FAST-A FILE ###
@@ -223,12 +231,14 @@ proc Process_Qseq {argv} {
 		}
 	incr l
 	
-	# FASTQ FILE WITH ALL DATA FROM QSEQ #
-	set fasta_id_head "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  "
-	puts $f_seq "\@$fasta_id_head  $l "
-	puts $f_seq $seq_lmt
-	puts $f_seq "\+"
-	puts $f_seq $seq_qlt
+	# FASTQ FILE WITH LOW QUALITY DATA FROM QSEQ #
+	if { $seq_flt == 0 } {
+		set fasta_id_head "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  "
+		puts $f_seq_0 "\@$fasta_id_head  $l  Q:$seq_flt "
+		puts $f_seq_0 $seq_lmt
+		puts $f_seq_0 "\+ "
+		puts $f_seq_0 $seq_qlt
+	}
 	
 	}
 	close $f_in1
@@ -239,7 +249,8 @@ proc Process_Qseq {argv} {
 	close $f_fst
 	close $f_gch
 	close $f_gcl
-	close $f_seq
+	close $f_seq_0
+	close $f_seq_1
 
 	puts " -+-+-+-+-+-+-+-+-+-+-+-+-+- "
 	puts " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count    - BAR_COUNT: $dna_count"
