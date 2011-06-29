@@ -79,7 +79,8 @@ proc Process_Qseq {argv} {
 	
 		set fasta_id_head "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  "
 		puts $f_seq_1 "\@$fasta_id_head  $l  Q:$seq_flt "
-		puts $f_seq_1 $seq_lmt
+		regsub -all {\.} $seq_lmt "N" seq_lmt_N
+		puts $f_seq_1 $seq_lmt_N
 		puts $f_seq_1 "\+ "
 		puts $f_seq_1 $seq_qlt
 	
@@ -235,7 +236,8 @@ proc Process_Qseq {argv} {
 	if { $seq_flt == 0 } {
 		set fasta_id_head "$run_id\:$machine\:$lane_n\:$tile_n\:$coordx\:$coordy\#$indx_0\/$read_n  "
 		puts $f_seq_0 "\@$fasta_id_head  $l  Q:$seq_flt "
-		puts $f_seq_0 $seq_lmt
+		regsub -all {\.} $seq_lmt "N" seq_lmt_N
+		puts $f_seq_0 $seq_lmt_N
 		puts $f_seq_0 "\+ "
 		puts $f_seq_0 $seq_qlt
 	}
