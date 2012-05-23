@@ -5,7 +5,7 @@ proc Process_Qseq {argv} {
 	set mod_val 100000
 	
 	### GC CONTENT WINDOW ###
-	set gc_lower 0.2
+	set gc_lower 0.1
 	set gc_upper 0.8
 	
 	### ADAPTOR TRIMMING STATUS ###
