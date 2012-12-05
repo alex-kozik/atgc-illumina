@@ -87,12 +87,13 @@ proc Process_Qseq {argv} {
 	####### READ AND PROCESS QSEQ DATA #######
 	set l 0
 	set g 0
-	set adp_count 0		; # ADAPTOR COUNT
-	set hpl_count 0		; # HOMOPOLYMER COUNT
-	set dna_count 0		; # DNA TAG COUNT
-	set gc_low_count 0
+	set adp_count1 0			; # ADAPTOR COUNT
+	set adp_count2 0			; # ADAPTOR COUNT
+	set hpl_count  0			; # HOMOPOLYMER COUNT
+	set dna_count  0			; # DNA TAG COUNT
+	set gc_low_count  0
 	set gc_high_count 0
-	set gc_ok_count 0
+	set gc_ok_count   0
 	
 	while { [gets $f_in1 current_line] >= 0 } {
 	set current_data [split $current_line "\t"]
@@ -151,12 +152,21 @@ proc Process_Qseq {argv} {
 	set adaptor_str ""
 	### ADAPTOR TRIMMING ###
 	if { $adaptor_trim == "TRUE" } {
+		### ADAPTER_1 ###
 		set adp_before [string length $trimmed_fasta]
-		set trimmed_fasta [Adaptor_Trimming $trimmed_fasta]
+		set trimmed_fasta [Adaptor_Trimming_1 $trimmed_fasta]
 		set adp_after  [string length $trimmed_fasta]
 		if { $adp_after < $adp_before } {
-			set adaptor_str   " _ADP_TRM_ "
-			incr adp_count
+			set adaptor_str   " _ADP_TRM1_ "
+			incr adp_count1
+		}
+		### ADAPTER_2 ###
+		set adp_before [string length $trimmed_fasta]
+		set trimmed_fasta [Adaptor_Trimming_2 $trimmed_fasta]
+		set adp_after  [string length $trimmed_fasta]
+		if { $adp_after < $adp_before } {
+			set adaptor_str   " _ADP_TRM2_ "
+			incr adp_count2
 		}
 	}
 	
@@ -277,7 +287,7 @@ proc Process_Qseq {argv} {
 	}
 		set k_mod [expr fmod($l,$mod_val)]
 		if { $k_mod == 0 } {
-			puts " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count    - BAR_COUNT: $dna_count"
+			puts " - $g  OUT OF  - $l    - ADP_TRM1: $adp_count1    - ADP_TRM2: $adp_count2    - LCMPL_TRM: $hpl_count    - BAR_COUNT: $dna_count"
 			puts "LOW_GC: $gc_low_count      HIGH_GC: $gc_high_count      OK_GC: $gc_ok_count"
 			puts " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - "
 		}
@@ -295,9 +305,9 @@ proc Process_Qseq {argv} {
 	close $f_seq_1
 	
 	puts " -+-+-+-+-+-+-+-+-+-+-+-+-+- "
-	puts " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count    - BAR_COUNT: $dna_count"
+	puts " - $g  OUT OF  - $l    - ADP_TRM1: $adp_count1    - ADP_TRM2: $adp_count2    - LCMPL_TRM: $hpl_count    - BAR_COUNT: $dna_count"
 	puts "LOW_GC: $gc_low_count      HIGH_GC: $gc_high_count      OK_GC: $gc_ok_count"
-	puts $f_log " - $g  OUT OF  - $l    - ADP_TRM: $adp_count    - LCMPL_TRM: $hpl_count    - BAR_COUNT: $dna_count"
+	puts $f_log " - $g  OUT OF  - $l    - ADP_TRM1: $adp_count1    - ADP_TRM2: $adp_count2    - LCMPL_TRM: $hpl_count    - BAR_COUNT: $dna_count"
 	puts $f_log "LOW_GC: $gc_low_count      HIGH_GC: $gc_high_count      OK_GC: $gc_ok_count"
 	puts " -+-+-+-+-+-+-+-+-+-+-+-+-+- "
 	
@@ -307,7 +317,7 @@ proc Process_Qseq {argv} {
 	puts "DONE"
 }
 
-proc Adaptor_Trimming { trimmed_fasta } {
+proc Adaptor_Trimming_1 { trimmed_fasta } {
 	### NGB00361.1:1-92 Illumina PCR Primer
 	# regsub -all -line {AGATCGGAAGAGCGTC.*} $trimmed_fasta "" trimmed_fasta
 	# regsub -all -line {AGATCGGAAGAGCGTC$} $trimmed_fasta "" trimmed_fasta
@@ -325,6 +335,32 @@ proc Adaptor_Trimming { trimmed_fasta } {
 	regsub -all -line {AGATCGGAAG$} $trimmed_fasta "" trimmed_fasta
 	regsub -all -line {AGATCGGAA$} $trimmed_fasta "" trimmed_fasta
 	regsub -all -line {AGATCGGA$} $trimmed_fasta "" trimmed_fasta
+	return $trimmed_fasta
+}
+
+proc Adaptor_Trimming_2 { trimmed_fasta } {
+	# TruSeq Index Adapter
+	regsub -all -line {AGATCGGAAGAGCA.*} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {AGATCGGAAGAGCA$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {AGATCGGAAGAGC$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {AGATCGGAAGAG$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {AGATCGGAAGA$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {AGATCGGAAG$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {AGATCGGAA$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {AGATCGGA$} $trimmed_fasta "" trimmed_fasta
+	return $trimmed_fasta
+}
+
+proc Adaptor_Trimming_2_no_A { trimmed_fasta } {
+	# TruSeq Index Adapter
+	regsub -all -line {GATCGGAAGAGCAC.*} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {GATCGGAAGAGCAC$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {GATCGGAAGAGCA$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {GATCGGAAGAGC$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {GATCGGAAGAG$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {GATCGGAAGA$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {GATCGGAAG$} $trimmed_fasta "" trimmed_fasta
+	regsub -all -line {GATCGGAA$} $trimmed_fasta "" trimmed_fasta
 	return $trimmed_fasta
 }
 
